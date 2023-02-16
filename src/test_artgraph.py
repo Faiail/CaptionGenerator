@@ -32,5 +32,9 @@ if __name__ == '__main__':
 
     manager = DataManager()
     data = get_data('data.csv', manager)
-    data['caption'] = data.progress_apply(lambda x: query(manager.get_prompt_by_artwork(x['name'])), axis = 1)
+
+    tqdm.pandas()
+    print('start')
+    data['prompt'] = data.progress_apply(lambda x: manager.get_template_by_artwork(x['name']), axis=1)
+    #data['caption'] = data.iloc[:50_000].progress_apply(lambda x: query(manager.get_prompt_by_artwork(x['name'])), axis=1)
     data.to_csv('data.csv')
