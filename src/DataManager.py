@@ -30,14 +30,6 @@ class DataManager():
             ans = list(map(lambda x: x['types'], session.run(query)))
         return list(filter(lambda x: x not in ["Emotion", "Period"], ans))
 
-    def __get_city(self, head: str, city: str, database: str = 'neo4j'):
-        with self.driver.session(database=database) as session:
-            query = f'match (h:Artwork{head})--()--(t:{city}) return t.name as tail'
-            ans = list(map(lambda x: x['tail'], session.run(query)))
-        if len(ans) == 0:
-            return ""
-        return ans[0]
-
     def get_attributes(self, head_type, head, database: str = 'neo4j'):
         with self.driver.session(database=database) as session:
             query = f"""match (h:{head_type}{head})--(t) where not labels(t)[0] in ["Emotion", "Period"]
@@ -52,22 +44,8 @@ class DataManager():
                                else f'{x[1][0]}'.strip(), axis=1)
         return df.values.tolist()
 
-    def get_attribute(self, head_type: str, head: str, tail: str, database: str = 'neo4j'):
-        if tail.lower() == 'city':
-            return self.__get_city(head, tail, database)
-        with self.driver.session(database=database) as session:
-            query = f'match (h:{head_type}{head})--(t:{tail}) return t.{"printed_" if tail == "Artist" else ""}name as tail'
-            ans = list(map(lambda x: x['tail'].replace('-', ' '), session.run(query)))
-        if len(ans) > 1:
-            return f'{", ".join(ans[:-1])} and {ans[-1]}'.strip()
-        if len(ans) == 0:
-            return ""
-        return f'{ans[0]}'.strip()
-
     def get_template(self, head_type: str, head_name: str, database: str = 'neo4j'):
-        types = self.get_neighbor_types(database, head_type)
         a = self.get_attributes(head_type, head_name, database)
-        #a = list(zip(types, list(map(lambda x: self.get_attribute(head_type, head_name, x, database), types))))
         return a + [['Date', self.__get_artwork_date(head_name, database)], ['Title', self.get_artwork_title(head_name, database)]]
 
     def get_prompt(self, template):
@@ -108,7 +86,3 @@ if __name__ == '__main__':
     manager = DataManager()
     artwork = random.choice(manager.get_artworks())
     print(manager.get_prompt_by_artwork(artwork))
-
-
-    #print(artwork)
-    #print(manager.get_attributes("Artwork", artwork))
