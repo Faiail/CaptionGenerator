@@ -4,7 +4,10 @@ import pandas as pd
 
 class DataManager():
     def __init__(self, driver: GraphDatabase = None):
-        self.driver = driver if driver else GraphDatabase.driver(uri="bolt://localhost:7687", auth=('neo4j', 'neo4j'))
+        try:
+            self.driver = driver if driver else GraphDatabase.driver(uri="bolt://localhost:7687", auth=('neo4j', 'neo4j'))
+        except:
+            print("Warning: cannot connect to DB. Only local operations can be performed.")
 
     def get_artworks(self, database: str = 'neo4j'):
         with self.driver.session(database=database) as session:
