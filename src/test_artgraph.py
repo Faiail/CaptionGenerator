@@ -1,9 +1,10 @@
 import pandas as pd
 from DataManager import DataManager
-import requests
-import json
 import os
 from tqdm import tqdm
+from transformers import pipeline
+from torch.utils.data import DataLoader
+from datasets import load_dataset
 
 
 def get_data(path: str = 'data.csv', manager = None):
@@ -15,23 +16,25 @@ def get_data(path: str = 'data.csv', manager = None):
     return data
 
 
-def query(payload, url, headers):
-    response = requests.post(url, headers=headers, json={"inputs": payload})
-    return response.json()
-
 if __name__ == '__main__':
-    tqdm.pandas()
-    key = json.load(open('key.json'))['key']
-    API_URL = "https://api-inference.huggingface.co/models/beyond/genius-large-k2t"
-    headers = {"Authorization": f"Bearer {key}"}
-
     manager = DataManager()
     data = get_data('data.csv', manager)
 
     if 'prompt' not in data.columns:
         data['prompt'] = data.progress_apply(lambda x: manager.get_prompt_by_artwork(x['name']), axis=1)
+        data.to_csv('data.csv')
 
-    if 'caption' not in data.columns:
-        data['caption'] = data.progress_apply(lambda x: query(x['prompt'], API_URL, headers), axis=1)
+    dataset = load_dataset('csv', data_files='data.csv')['train']
+    loader = DataLoader(dataset=dataset, batch_size=16)
+
+    genius = pipeline('text2text-generation', model='beyond/genius-large-k2t', device=0)
+
+    data['caption'] = ''
+
+    for batch in tqdm(loader):
+        ix, prompts = batch['Unnamed: 0'].tolist(), batch['prompt']
+        out = genius(prompts)
+        out = list(map(lambda x: x['generated_text'], out))
+        data.loc[ix, 'caption'] = out
 
     data.to_csv('data.csv')
